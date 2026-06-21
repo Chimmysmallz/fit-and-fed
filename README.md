@@ -26,7 +26,7 @@ Built as a single self-contained web app that also wraps into an Android/iOS app
 
 ## 🚀 Use it
 
-- **Live web version:** _add your GitHub Pages link here after you enable Pages_
+- **Live web version:** (https://chimmysmallz.github.io/fit-and-fed/)
 - **On your phone:** open the app in Chrome → menu → **Add to Home screen**.
   It gets an icon and works offline.
 
