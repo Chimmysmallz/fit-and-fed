@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d1b2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Fit &amp; Fed</title>
+<!-- ===== Firebase (login + cloud sync). Loads only when online; the app works fully offline without it. ===== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  /* 🔧 PASTE YOUR FIREBASE CONFIG HERE — see FIREBASE-SETUP.md.
+     Until you do, login stays off and the app runs offline-only (still fully usable). */
+  window.FIREBASE_CONFIG = {
+    apiKey: "PASTE_HERE",
+    authDomain: "PASTE_HERE",
+    projectId: "PASTE_HERE",
+    appId: "PASTE_HERE"
+  };
+</script>
+<style>
+  :root{
+    --bg:#0d1b2a; --bg2:#13263b; --card:#1b3a57; --card2:#214b6e;
+    --accent:#ff7b00; --accent2:#ffb703; --green:#2ec4b6; --pink:#ff4d6d; --blue:#48cae4;
+    --text:#eef4fb; --muted:#9fb6cc; --ring:#23415f;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(160deg,var(--bg),var(--bg2));
+    color:var(--text);min-height:100vh;padding-bottom:84px;overscroll-behavior:none;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:16px 16px 0;}
+  h1,h2,h3{margin:0 0 8px;}
+  h1{font-size:1.45rem;font-weight:800;letter-spacing:.3px;}
+  h2{font-size:1.1rem;font-weight:700;}
+  h3{font-size:.95rem;font-weight:700;}
+  .muted{color:var(--muted);font-size:.88rem;}
+  .small{font-size:.78rem;}
+  .card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:13px;box-shadow:0 6px 18px rgba(0,0,0,.25);}
+  .card.alt{background:var(--card2);}
+  button{font-family:inherit;cursor:pointer;border:none;}
+  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#1a1300;font-weight:800;border-radius:14px;padding:13px 16px;font-size:.98rem;width:100%;margin-top:6px;}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:transparent;border:2px solid var(--ring);color:var(--text);}
+  .btn.green{background:linear-gradient(135deg,#2ec4b6,#3ddc97);color:#062018;}
+  .btn.blue{background:linear-gradient(135deg,#0096c7,#48cae4);color:#012a35;}
+  .btn.small{width:auto;padding:8px 13px;font-size:.82rem;display:inline-block;margin:4px 4px 0 0;}
+  input,select,textarea{width:100%;padding:12px;border-radius:12px;border:2px solid var(--ring);background:var(--bg2);color:var(--text);font-size:1rem;font-family:inherit;margin-top:6px;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+  label{font-size:.82rem;color:var(--muted);display:block;margin-top:10px;}
+  .row{display:flex;gap:10px;align-items:center;}
+  .grow{flex:1;}
+  .chip{display:inline-block;background:var(--bg2);border:1px solid var(--ring);border-radius:999px;padding:5px 12px;font-size:.8rem;color:var(--muted);}
+  .chip b{color:var(--accent2);}
+
+  /* tabs */
+  nav{position:fixed;bottom:0;left:0;right:0;background:rgba(13,27,42,.97);backdrop-filter:blur(8px);border-top:1px solid var(--ring);display:flex;z-index:50;}
+  nav .wrapn{max-width:520px;margin:0 auto;display:flex;width:100%;}
+  nav button{flex:1;background:none;color:var(--muted);padding:9px 2px 13px;font-size:.66rem;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  nav button .ic{font-size:1.3rem;line-height:1;}
+  nav button.on{color:var(--accent2);}
+  .page{display:none;animation:fade .25s ease;}
+  .page.on{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  /* sub-pills */
+  .pills{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px;-ms-overflow-style:none;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pills .pill{flex:none;background:var(--bg2);border:1px solid var(--ring);border-radius:999px;padding:8px 14px;font-size:.83rem;color:var(--muted);white-space:nowrap;}
+  .pills .pill.on{background:var(--accent);color:#1a1300;border-color:var(--accent);font-weight:800;}
+  .sub{display:none;}
+  .sub.on{display:block;}
+
+  /* ring */
+  .ring{position:relative;width:96px;height:96px;flex:none;}
+  .ring .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .ring .num b{font-size:1.3rem;}
+  .ring .num span{font-size:.6rem;color:var(--muted);text-align:center;line-height:1.1;}
+  .ring-row{display:flex;align-items:center;gap:16px;}
+
+  .stat{display:flex;gap:8px;margin-top:6px;}
+  .stat .box{flex:1;background:var(--bg2);border-radius:14px;padding:10px;text-align:center;}
+  .stat .box b{font-size:1.35rem;display:block;}
+  .stat .box small{color:var(--muted);font-size:.68rem;}
+
+  .ex-item{display:flex;align-items:center;gap:12px;padding:11px;background:var(--bg2);border-radius:14px;margin-top:8px;}
+  .ex-item .emo{font-size:1.6rem;}
+  .ex-item .meta{flex:1;}
+  .ex-item .meta b{font-size:.95rem;}
+  .ex-item .meta small{color:var(--muted);display:block;font-size:.76rem;line-height:1.35;}
+
+  .overlay{position:fixed;inset:0;background:linear-gradient(160deg,#08111c,#0d1b2a);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+  .overlay.on{display:flex;}
+  .overlay .emo{font-size:5rem;margin-bottom:6px;animation:bob 1.2s ease-in-out infinite;}
+  @keyframes bob{50%{transform:translateY(-10px);}}
+  .overlay h2{font-size:1.7rem;margin-bottom:4px;}
+  .timer-num{font-size:4.6rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--accent2);margin:6px 0;}
+  .timer-num.rest{color:var(--green);}
+  .tip{color:var(--muted);max-width:360px;margin:0 auto 16px;font-size:.95rem;}
+  .ov-bar{width:100%;max-width:360px;height:8px;background:var(--ring);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+  .ov-bar>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .3s linear;}
+  .ov-controls{display:flex;gap:10px;width:100%;max-width:360px;}
+  .ov-controls button{flex:1;}
+  .step-count{color:var(--muted);font-size:.85rem;margin-bottom:8px;}
+
+  .quote{font-style:italic;font-size:1.02rem;line-height:1.5;}
+  .badge{display:inline-flex;flex-direction:column;align-items:center;width:70px;margin:6px;opacity:.32;vertical-align:top;}
+  .badge.got{opacity:1;}
+  .badge .b-emo{font-size:1.9rem;}
+  .badge small{font-size:.62rem;color:var(--muted);text-align:center;margin-top:2px;}
+
+  .list-line{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--ring);font-size:.92rem;}
+  .list-line:last-child{border:none;}
+  .cat{color:var(--accent2);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;}
+  .total-line{display:flex;justify-content:space-between;font-weight:800;font-size:1.02rem;margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);}
+  .meal{background:var(--bg2);border-radius:14px;padding:12px;margin-top:9px;}
+  .meal b{color:var(--accent2);}
+  .meal small{color:var(--muted);display:block;margin-top:3px;line-height:1.45;}
+  .hi{color:var(--accent2);font-weight:700;}
+  .center{text-align:center;}
+  a{color:var(--accent2);}
+
+  .faces{display:flex;justify-content:space-between;margin-top:10px;}
+  .face{font-size:2rem;background:var(--bg2);border:2px solid var(--ring);border-radius:14px;width:54px;height:54px;display:flex;align-items:center;justify-content:center;}
+  .face.on{border-color:var(--accent);background:var(--card2);transform:scale(1.08);}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:80px;margin-top:10px;}
+  .bars .b{flex:1;background:var(--bg2);border-radius:6px 6px 0 0;position:relative;min-height:6px;}
+  .bars .b span{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:.6rem;color:var(--muted);}
+  .check{display:flex;align-items:center;gap:10px;padding:11px;background:var(--bg2);border-radius:12px;margin-top:8px;cursor:pointer;}
+  .check .bx{width:24px;height:24px;border-radius:7px;border:2px solid var(--ring);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex:none;}
+  .check.done .bx{background:var(--green);border-color:var(--green);color:#062018;}
+  .check.done span{text-decoration:line-through;color:var(--muted);}
+
+  .level-bar{height:10px;background:var(--ring);border-radius:8px;overflow:hidden;margin-top:8px;}
+  .level-bar>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .theme-opt{display:flex;align-items:center;gap:12px;padding:11px;background:var(--bg2);border-radius:14px;margin-top:8px;}
+  .swatch{width:34px;height:34px;border-radius:9px;flex:none;}
+  .tag{font-size:.7rem;padding:3px 9px;border-radius:999px;background:var(--ring);color:var(--muted);}
+  .tag.on{background:var(--green);color:#062018;font-weight:700;}
+  .disc{font-size:.74rem;color:var(--muted);margin-top:10px;line-height:1.45;border-left:3px solid var(--ring);padding-left:10px;}
+  /* animated exercise figures (flipbook) */
+  .flip{position:relative;display:inline-block;color:var(--accent2);vertical-align:middle;}
+  .flip .figsvg{display:block;width:100%;height:100%;}
+  .flip .figsvg.f2{position:absolute;top:0;left:0;}
+  .flip.run .figsvg.f1{animation:flA var(--sp,1s) steps(1,end) infinite;}
+  .flip.run .figsvg.f2{animation:flB var(--sp,1s) steps(1,end) infinite;}
+  @keyframes flA{0%,49.9%{opacity:1}50%,100%{opacity:0}}
+  @keyframes flB{0%,49.9%{opacity:0}50%,100%{opacity:1}}
+  .ex-item .emo{display:flex;align-items:center;justify-content:center;width:46px;}
+</style>
+</head>
+<body>
+
+<!-- ================= HOME ================= -->
+<div class="page on" id="home"><div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div><h1>Hey <span id="greetName">there</span> 👋</h1><p class="muted" id="dateLine"></p></div>
+    <div style="text-align:right"><div class="chip">⭐ Lv <b id="lvlChip">1</b></div>
+      <div class="chip" style="margin-top:4px">🪙 <b id="coinChip">0</b></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ring-row">
+      <div id="weekRing"></div>
+      <div class="grow"><h2 id="motivLine">Let's get moving 💪</h2>
+        <p class="muted" id="subLine">Every small workout counts.</p></div>
+    </div>
+    <div class="stat">
+      <div class="box"><b id="streakNum">0</b><small>🔥 streak</small></div>
+      <div class="box"><b id="totalNum">0</b><small>✅ workouts</small></div>
+      <div class="box"><b id="minNum">0</b><small>⏱️ minutes</small></div>
+    </div>
+  </div>
+
+  <div class="card alt" id="challengeCard"></div>
+
+  <div class="card">
+    <h2>Today at a glance</h2>
+    <div class="ring-row" style="justify-content:space-around;margin-top:6px" id="glanceRings"></div>
+  </div>
+
+  <div class="card"><p class="quote" id="quote"></p></div>
+
+  <div class="card">
+    <h2>Start now</h2>
+    <button class="btn" onclick="startRoutine('wake')">⚡ Wake Up &amp; Go · 5 min</button>
+    <button class="btn green" onclick="startRoutine('quick')">🔥 Quick Burn · 7 min</button>
+    <button class="btn ghost" onclick="go('move')">All workouts &amp; exercises →</button>
+  </div>
+
+  <div class="card alt" id="nudgeCard"></div>
+</div></div>
+
+<!-- ================= MOVE ================= -->
+<div class="page" id="move"><div class="wrap">
+  <h1>Move</h1>
+  <div class="pills">
+    <span class="pill on" onclick="showSub('move','routines',this)">Routines</span>
+    <span class="pill" onclick="showSub('move','library',this)">Exercise library</span>
+    <span class="pill" onclick="showSub('move','steps',this)">Steps</span>
+  </div>
+
+  <div class="sub move on" id="move-routines">
+    <p class="muted">Simple, real moves. No equipment. Tap to begin.</p>
+    <div id="routineList"></div>
+  </div>
+
+  <div class="sub move" id="move-library">
+    <p class="muted">Learn each move. Tap one to do a guided 40-second rep set.</p>
+    <div class="pills" id="catPills"></div>
+    <div id="libList"></div>
+  </div>
+
+  <div class="sub move" id="move-steps">
+    <div class="card"><div class="ring-row"><div id="stepRing"></div>
+      <div class="grow"><h2>Steps today</h2><p class="muted" id="stepMsg">Let's hit your goal!</p></div></div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn small" onclick="addSteps(250)">+250</button>
+        <button class="btn small" onclick="addSteps(500)">+500</button>
+        <button class="btn small" onclick="addSteps(1000)">+1000</button>
+        <button class="btn small ghost" onclick="addStepsCustom()">Custom</button>
+      </div>
+      <button class="btn blue" id="stepSensorBtn" onclick="toggleSteps()">📲 Auto-count my steps</button>
+      <label>Daily step goal</label>
+      <div class="row"><input type="number" id="stepGoalInput" inputmode="numeric" class="grow">
+        <button class="btn small" onclick="saveStepGoal()">Set</button></div>
+      <p class="disc">Auto-counting uses your phone's motion sensor and works <b>only while this app is open on screen</b> — it can't run in the background like a fitness band. Use the +buttons to log walks done away from the app.</p>
+    </div>
+  </div>
+</div></div>
+
+<!-- ================= WELLNESS ================= -->
+<div class="page" id="well"><div class="wrap">
+  <h1>Wellness</h1>
+  <div class="pills">
+    <span class="pill on" onclick="showSub('well','mood',this)">Mood</span>
+    <span class="pill" onclick="showSub('well','water',this)">Water</span>
+    <span class="pill" onclick="showSub('well','sleep',this)">Sleep</span>
+    <span class="pill" onclick="showSub('well','skin',this)">Skin</span>
+    <span class="pill" onclick="showSub('well','break',this)">Breaks</span>
+  </div>
+
+  <!-- MOOD -->
+  <div class="sub well on" id="well-mood">
+    <div class="card"><h2>How are you feeling?</h2>
+      <div class="faces" id="moodFaces"></div>
+      <textarea id="moodNote" rows="2" placeholder="Anything on your mind? (optional)"></textarea>
+      <button class="btn" onclick="saveMood()">Log my mood</button>
+    </div>
+    <div class="card alt" id="moodAnalysis"><h2>Your mood insights 🧠</h2>
+      <p class="muted">Log a few days and I'll show your trend here.</p></div>
+    <p class="disc">This is a reflective tracker, not a medical tool. If low moods last more than two weeks, please reach out to someone you trust or a professional.</p>
+  </div>
+
+  <!-- WATER -->
+  <div class="sub well" id="well-water">
+    <div class="card"><div class="ring-row"><div id="waterRing"></div>
+      <div class="grow"><h2>Hydration</h2><p class="muted" id="waterMsg">Stay watered 💧</p></div></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn blue grow" onclick="addWater(1)">+ 1 glass 💧</button>
+        <button class="btn ghost small" onclick="addWater(-1)">−</button>
+      </div>
+      <label>Daily goal (glasses)</label>
+      <div class="row"><input type="number" id="waterGoalInput" inputmode="numeric" class="grow">
+        <button class="btn small" onclick="saveWaterGoal()">Set</button></div>
+    </div>
+  </div>
+
+  <!-- SLEEP -->
+  <div class="sub well" id="well-sleep">
+    <div class="card"><h2>Sleep log 😴</h2>
+      <label>How many hours did you sleep last night?</label>
+      <div class="row"><input type="number" id="sleepHrs" step="0.5" inputmode="decimal" placeholder="e.g. 7" class="grow">
+        <button class="btn small" onclick="logSleep()">Log</button></div>
+      <div id="sleepStats" style="margin-top:12px"></div>
+    </div>
+    <div class="card alt"><h2>Bedtime reminder ⏰</h2>
+      <label>Target bedtime</label>
+      <input type="time" id="bedTime">
+      <button class="btn" onclick="saveBedtime()">Save bedtime</button>
+      <p class="disc">While the app is open near your bedtime, I'll nudge you on the Home screen. (A web app can't alert you when it's fully closed.)</p>
+    </div>
+  </div>
+
+  <!-- SKIN -->
+  <div class="sub well" id="well-skin">
+    <div class="card"><h2>Skin-care helper ✨</h2>
+      <p class="muted">A quick check to build your routine. (I can't scan photos — this is a guided self-assessment.)</p>
+      <label>My skin usually feels…</label>
+      <select id="skinType">
+        <option value="">Choose…</option>
+        <option value="oily">Oily / shiny by midday</option>
+        <option value="dry">Dry / tight / flaky</option>
+        <option value="combination">Combination (oily T-zone, dry cheeks)</option>
+        <option value="normal">Balanced / normal</option>
+        <option value="sensitive">Sensitive / reacts easily</option>
+      </select>
+      <label>Main concerns (tap any)</label>
+      <div id="skinConcerns"></div>
+      <button class="btn" onclick="buildSkin()">Build my routine</button>
+    </div>
+    <div id="skinResult"></div>
+    <div class="card"><h2>Daily skin habits</h2><div id="skinHabits"></div></div>
+    <p class="disc">General guidance only — not medical advice. For persistent acne, rashes or reactions, please see a dermatologist.</p>
+  </div>
+
+  <!-- BREAKS -->
+  <div class="sub well" id="well-break">
+    <div class="card"><h2>🪑 Office stretch break</h2>
+      <p class="muted">6 desk-friendly moves, about 2 minutes.</p>
+      <div id="stretchList"></div>
+    </div>
+    <div class="card alt"><h2>⏰ Break reminder</h2>
+      <p class="muted">I'll nudge you to stand and stretch.</p>
+      <label>Remind me every</label>
+      <select id="reminderMins"><option value="30">30 minutes</option><option value="45" selected>45 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option></select>
+      <button class="btn" id="reminderBtn" onclick="toggleReminder()">Start break reminders</button>
+      <p class="muted center" id="reminderStatus" style="margin-top:8px"></p>
+    </div>
+  </div>
+</div></div>
+
+<!-- ================= EAT ================= -->
+<div class="page" id="eat"><div class="wrap">
+  <h1>Eat</h1>
+  <div class="pills">
+    <span class="pill on" onclick="showSub('eat','budget',this)">Budget</span>
+    <span class="pill" onclick="showSub('eat','cal',this)">Calories</span>
+    <span class="pill" onclick="showSub('eat','fast',this)">Fasting</span>
+  </div>
+
+  <!-- BUDGET -->
+  <div class="sub eat on" id="eat-budget">
+    <div class="card"><p class="muted">Tell me your weekly feeding budget and I'll suggest affordable things to buy and easy meals.</p>
+      <label>Budget this week (₦)</label>
+      <input type="number" id="budgetInput" placeholder="e.g. 12000" inputmode="numeric">
+      <label>Cooking for</label>
+      <select id="peopleInput"><option value="1" selected>Just me</option><option value="2">2 people</option><option value="3">3 people</option><option value="4">4 people</option></select>
+      <button class="btn" onclick="planBudget()">Build my plan 🛒</button>
+    </div>
+    <div id="budgetResult"></div>
+  </div>
+
+  <!-- CALORIES -->
+  <div class="sub eat" id="eat-cal">
+    <div class="card"><div class="ring-row"><div id="calRing"></div>
+      <div class="grow"><h2>Calories today</h2><p class="muted" id="calMsg"></p></div></div>
+      <label>Pick a food</label>
+      <select id="calFood"></select>
+      <button class="btn small" onclick="addCalFromList()">Add this</button>
+      <button class="btn small ghost" onclick="addCalCustom()">Add custom food</button>
+      <div id="calList" style="margin-top:10px"></div>
+      <label>Daily calorie goal</label>
+      <div class="row"><input type="number" id="calGoalInput" inputmode="numeric" class="grow">
+        <button class="btn small" onclick="saveCalGoal()">Set</button></div>
+    </div>
+    <p class="disc">Calorie values are typical estimates for common Nigerian servings and will vary with portion size and how the food is prepared. Use as a guide.</p>
+  </div>
+
+  <!-- FASTING -->
+  <div class="sub eat" id="eat-fast">
+    <div class="card"><div class="ring-row"><div id="fastRing"></div>
+      <div class="grow"><h2 id="fastState">Not fasting</h2><p class="muted" id="fastMsg">Pick a plan and start when your last meal ends.</p></div></div>
+      <label>Fasting plan</label>
+      <div class="row" style="flex-wrap:wrap" id="fastPlans"></div>
+      <button class="btn" id="fastBtn" onclick="toggleFast()">Start fasting</button>
+    </div>
+    <p class="disc">Intermittent fasting isn't for everyone. If you're pregnant, diabetic, on medication, or have a health condition, please check with your doctor first. Drink water during your fast.</p>
+  </div>
+</div></div>
+
+<!-- ================= ME ================= -->
+<div class="page" id="me"><div class="wrap">
+  <h1>My Profile</h1>
+
+  <div class="card" id="accountCard"></div>
+
+  <div class="card"><h2>⭐ Level <span id="lvlBig">1</span></h2>
+    <div class="row" style="justify-content:space-between"><span class="muted" id="xpText">0 XP</span><span class="muted" id="xpNext"></span></div>
+    <div class="level-bar"><div id="xpBar" style="width:0%"></div></div>
+    <div class="stat" style="margin-top:12px">
+      <div class="box"><b id="coinBig">0</b><small>🪙 coins</small></div>
+      <div class="box"><b id="badgeCount">0</b><small>🏅 badges</small></div>
+      <div class="box"><b id="lvlBox">1</b><small>⭐ level</small></div>
+    </div>
+  </div>
+
+  <div class="card"><h2>🎁 Rewards — unlock themes</h2>
+    <p class="muted">Earn coins by working out, logging, and hitting goals. Spend them here.</p>
+    <div id="themeStore"></div>
+  </div>
+
+  <div class="card"><h2>🏅 Achievements</h2><div id="badges" class="center"></div></div>
+
+  <div class="card"><h2>My details</h2>
+    <label>My name</label><input type="text" id="nameInput" placeholder="Your name">
+    <label>My “why”</label><input type="text" id="whyInput" placeholder="e.g. More energy, feel strong">
+    <label>Workouts I want each week</label>
+    <select id="goalInput"><option value="2">2 — easing in</option><option value="3" selected>3 — building a habit</option><option value="4">4 — committed</option><option value="5">5 — beast mode</option></select>
+    <button class="btn" onclick="saveProfile()">Save</button>
+  </div>
+
+  <div class="card alt"><h2>💡 Your why</h2><p class="quote" id="whyShow"></p></div>
+
+  <div class="card"><h2>☁️ Save &amp; move my data</h2>
+    <p class="muted">Your progress saves automatically on this phone. To back it up or move to a new phone, copy your backup code and restore it on the other device.</p>
+    <button class="btn small" onclick="exportData()">Copy my backup code</button>
+    <button class="btn small ghost" onclick="importData()">Restore from a code</button>
+    <textarea id="backupBox" readonly rows="3" style="display:none;margin-top:8px;font-size:.7rem"></textarea>
+  </div>
+
+  <div class="card alt"><h2>📲 Install on my phone</h2>
+    <p class="muted">Open this file in Chrome on Android → tap the <b>⋮</b> menu → <b>“Add to Home screen.”</b> You'll get an app icon, and it works fully offline.</p>
+  </div>
+
+  <div class="card"><button class="btn ghost" onclick="resetAll()">Reset all my data</button>
+    <p class="muted center small" style="margin-top:8px">Everything is stored only on your phone. Nothing leaves your device.</p></div>
+</div></div>
+
+<!-- ================= TIMER OVERLAY ================= -->
+<div class="overlay" id="overlay">
+  <div class="step-count" id="stepCountTxt"></div>
+  <div class="emo" id="ovEmo">💪</div>
+  <h2 id="ovName">Get ready</h2>
+  <div class="timer-num" id="ovTimer">3</div>
+  <p class="tip" id="ovTip">Stand tall, breathe, let's go!</p>
+  <div class="ov-bar"><div id="ovBar"></div></div>
+  <div class="ov-controls" id="ovControls">
+    <button class="btn ghost" onclick="togglePause()" id="pauseBtn">Pause</button>
+    <button class="btn ghost" onclick="skipStep()">Skip</button>
+    <button class="btn" style="background:var(--pink);color:#fff" onclick="quitRoutine()">Quit</button>
+  </div>
+</div>
+
+<!-- ================= NAV ================= -->
+<nav><div class="wrapn">
+  <button class="on" data-pg="home" onclick="go('home')"><span class="ic">🏠</span>Home</button>
+  <button data-pg="move" onclick="go('move')"><span class="ic">💪</span>Move</button>
+  <button data-pg="well" onclick="go('well')"><span class="ic">🧘</span>Wellness</button>
+  <button data-pg="eat" onclick="go('eat')"><span class="ic">🍽️</span>Eat</button>
+  <button data-pg="me" onclick="go('me')"><span class="ic">👤</span>Me</button>
+</div></nav>
+
+<script>
+/* ============ EXERCISE DATA ============ */
+const ROUTINES = {
+  wake:{name:"Wake Up & Go",emoji:"⚡",desc:"5 min · gentle start",real:true,steps:[
+    {n:"March in place",e:"🚶",w:40,tip:"Lift knees, pump arms."},
+    {n:"Arm circles",e:"🔄",w:30,tip:"Big slow circles, both ways."},
+    {n:"Bodyweight squats",e:"🪑",w:40,tip:"Sit back like a chair's behind you."},
+    {n:"Wall push-ups",e:"🧱",w:40,tip:"Hands on wall, lower chest in."},
+    {n:"Standing knee lifts",e:"🦵",w:40,tip:"Knee to opposite elbow."},
+    {n:"Glute bridge",e:"🌉",w:40,tip:"Lie down, squeeze & lift hips."}]},
+  quick:{name:"Quick Burn",emoji:"🔥",desc:"7 min · heart-raiser",real:true,steps:[
+    {n:"Jumping jacks",e:"⭐",w:40,tip:"Soft knees, steady rhythm."},
+    {n:"Squats",e:"🪑",w:45,tip:"Chest up, weight in heels."},
+    {n:"High knees",e:"🏃",w:30,tip:"Quick light steps on the spot."},
+    {n:"Push-ups (knees ok)",e:"💥",w:40,tip:"Drop to knees — still counts!"},
+    {n:"Reverse lunges",e:"🦿",w:45,tip:"Step back, alternate legs."},
+    {n:"Plank hold",e:"🪵",w:30,tip:"Straight line, tight belly."},
+    {n:"Mountain climbers",e:"⛰️",w:30,tip:"Drive knees in, steady."}]},
+  full:{name:"Full Body Starter",emoji:"🌟",desc:"10 min · all-round",real:true,steps:[
+    {n:"March + arm swings",e:"🚶",w:45,tip:"Warm up the shoulders."},
+    {n:"Squats",e:"🪑",w:45,tip:"Slow, full range."},
+    {n:"Push-ups (knees ok)",e:"💥",w:40,tip:"Quality over speed."},
+    {n:"Reverse lunges",e:"🦿",w:45,tip:"Control the step back."},
+    {n:"Glute bridge",e:"🌉",w:45,tip:"Squeeze 1 sec at the top."},
+    {n:"Plank",e:"🪵",w:35,tip:"Hold steady, don't sag."},
+    {n:"Side bends",e:"↔️",w:40,tip:"Reach over, feel the stretch."},
+    {n:"High knees",e:"🏃",w:30,tip:"Finish strong!"},
+    {n:"Calf raises",e:"🦶",w:40,tip:"Up on toes, slow down."},
+    {n:"Deep breaths",e:"😮‍💨",w:30,tip:"In nose, out mouth."}]},
+  core:{name:"Core Crusher",emoji:"🎯",desc:"8 min · abs & core",real:true,steps:[
+    {n:"Plank",e:"🪵",w:40,tip:"Elbows under shoulders, brace."},
+    {n:"Crunches",e:"🔺",w:40,tip:"Chin off chest, lift shoulders."},
+    {n:"Leg raises",e:"🦵",w:40,tip:"Lower legs slow, back flat."},
+    {n:"Bicycle crunches",e:"🚲",w:40,tip:"Elbow to opposite knee."},
+    {n:"Dead bug",e:"🐛",w:40,tip:"Opposite arm & leg, slow."},
+    {n:"Russian twists",e:"🔄",w:40,tip:"Twist side to side, lean back."},
+    {n:"Side plank (R)",e:"➡️",w:25,tip:"Stack feet, lift hips."},
+    {n:"Side plank (L)",e:"⬅️",w:25,tip:"Other side, hold strong."}]},
+  legs:{name:"Leg Day",emoji:"🦿",desc:"9 min · lower body",real:true,steps:[
+    {n:"Squats",e:"🪑",w:45,tip:"Deep as comfortable."},
+    {n:"Reverse lunges",e:"🦿",w:45,tip:"Alternate, knee tracks toe."},
+    {n:"Sumo squats",e:"🔻",w:40,tip:"Wide stance, toes out."},
+    {n:"Glute bridge",e:"🌉",w:45,tip:"Drive through heels."},
+    {n:"Wall sit",e:"🧱",w:40,tip:"Thighs parallel, hold it."},
+    {n:"Calf raises",e:"🦶",w:40,tip:"Full range, slow."},
+    {n:"Single-leg bridge (R)",e:"1️⃣",w:25,tip:"One leg up, lift hips."},
+    {n:"Single-leg bridge (L)",e:"2️⃣",w:25,tip:"Swap legs."},
+    {n:"Step-ups (use a chair)",e:"📦",w:40,tip:"Sturdy step, alternate."}]},
+  upper:{name:"Upper Body",emoji:"💪",desc:"8 min · arms & chest",real:true,steps:[
+    {n:"Push-ups (knees ok)",e:"💥",w:40,tip:"Lower with control."},
+    {n:"Wide push-ups",e:"🔱",w:35,tip:"Hands wider, chest focus."},
+    {n:"Tricep dips (chair)",e:"🪑",w:40,tip:"Hands on seat, bend elbows."},
+    {n:"Pike push-ups",e:"⛰️",w:35,tip:"Hips high, work shoulders."},
+    {n:"Plank shoulder taps",e:"👆",w:40,tip:"Tap opposite shoulder, stay flat."},
+    {n:"Superman",e:"🦸",w:35,tip:"Lift arms & legs, squeeze back."},
+    {n:"Arm circles",e:"🔄",w:35,tip:"Small fast circles to finish."}]},
+  cardio:{name:"Cardio Blast",emoji:"⚡",desc:"8 min · sweat it out",real:true,steps:[
+    {n:"Jumping jacks",e:"⭐",w:40,tip:"Find your rhythm."},
+    {n:"High knees",e:"🏃",w:35,tip:"Pump those arms."},
+    {n:"Butt kicks",e:"🦵",w:35,tip:"Heels to glutes."},
+    {n:"Skaters",e:"⛸️",w:40,tip:"Leap side to side."},
+    {n:"Mountain climbers",e:"⛰️",w:35,tip:"Fast but controlled."},
+    {n:"Step-back burpee",e:"🆙",w:40,tip:"Beginner: step out, no jump."},
+    {n:"Squat to stand",e:"🪑",w:40,tip:"Explode up from the squat."},
+    {n:"Fast feet",e:"👟",w:30,tip:"Quick light steps, finish!"}]},
+  mobility:{name:"Mobility & Stretch",emoji:"🧘",desc:"8 min · loosen up",real:false,steps:[
+    {n:"Cat–cow",e:"🐱",w:40,tip:"Arch and round your back slowly."},
+    {n:"World's greatest stretch (R)",e:"🌍",w:30,tip:"Lunge, reach to the ceiling."},
+    {n:"World's greatest stretch (L)",e:"🌍",w:30,tip:"Other side."},
+    {n:"Hip circles",e:"🔄",w:35,tip:"Hands on hips, big circles."},
+    {n:"Hamstring stretch",e:"🦵",w:40,tip:"Hinge forward, soft knees."},
+    {n:"Quad stretch",e:"🦿",w:35,tip:"Heel to glute, hold a wall."},
+    {n:"Child's pose",e:"🙇",w:40,tip:"Sink hips back, breathe."},
+    {n:"Chest opener",e:"🦅",w:30,tip:"Clasp hands behind, open up."}]},
+  office:{name:"Office Stretch Break",emoji:"🪑",desc:"2 min · at your desk",real:false,steps:[
+    {n:"Neck rolls",e:"🙆",w:25,tip:"Slow circles, don't force."},
+    {n:"Shoulder shrugs",e:"🤷",w:20,tip:"Up to ears, drop, relax."},
+    {n:"Seated spinal twist",e:"🔄",w:30,tip:"Hold the chair, twist each side."},
+    {n:"Wrist & finger stretch",e:"✋",w:25,tip:"Great after lots of typing."},
+    {n:"Chest opener",e:"🦅",w:25,tip:"Clasp hands behind, open chest."},
+    {n:"Stand & reach up",e:"🙌",w:25,tip:"Reach for the ceiling."}]},
+  breathe:{name:"Calm Down",emoji:"🧘",desc:"1 min · reset",real:false,steps:[
+    {n:"Box breathing",e:"🟦",w:30,tip:"In 4 · hold 4 · out 4 · hold 4."},
+    {n:"Shoulder relax",e:"😌",w:30,tip:"Drop shoulders, unclench jaw."}]},
+};
+const ROUTINE_ORDER=["wake","quick","full","core","legs","upper","cardio","mobility","breathe"];
+const STRETCHES=ROUTINES.office.steps;
+
+/* exercise library (browsable) */
+const LIB_CATS=["All","Cardio","Legs","Core","Upper","Mobility"];
+const LIBRARY=[
+  {n:"Squat",e:"🪑",cat:"Legs",w:40,how:"Feet shoulder-width, sit hips back and down, chest up, drive through heels to stand."},
+  {n:"Reverse lunge",e:"🦿",cat:"Legs",w:40,how:"Step one foot back, lower the back knee toward the floor, push back to standing. Alternate."},
+  {n:"Sumo squat",e:"🔻",cat:"Legs",w:40,how:"Wide stance, toes turned out, squat down keeping knees tracking over toes."},
+  {n:"Glute bridge",e:"🌉",cat:"Legs",w:40,how:"Lie on back, knees bent, push hips up squeezing glutes, lower with control."},
+  {n:"Wall sit",e:"🧱",cat:"Legs",w:40,how:"Back against wall, slide down till thighs are parallel, hold."},
+  {n:"Calf raises",e:"🦶",cat:"Legs",w:40,how:"Rise onto the balls of your feet, pause, lower slowly."},
+  {n:"Push-up",e:"💥",cat:"Upper",w:40,how:"Hands under shoulders, body straight, lower chest, press up. Drop to knees if needed."},
+  {n:"Tricep dip",e:"🪑",cat:"Upper",w:40,how:"Hands on a sturdy chair behind you, bend elbows to lower, press back up."},
+  {n:"Pike push-up",e:"⛰️",cat:"Upper",w:35,how:"Hips high in an inverted V, lower head toward floor, press up — shoulder focus."},
+  {n:"Superman",e:"🦸",cat:"Upper",w:35,how:"Lie face down, lift arms, chest and legs, squeeze your back, lower slowly."},
+  {n:"Plank",e:"🪵",cat:"Core",w:40,how:"Forearms down, body in a straight line, brace your belly, breathe."},
+  {n:"Crunch",e:"🔺",cat:"Core",w:40,how:"Knees bent, lift shoulders off floor curling toward knees, lower slowly."},
+  {n:"Leg raise",e:"🦵",cat:"Core",w:40,how:"Lie flat, lift straight legs to vertical, lower without touching the floor."},
+  {n:"Bicycle crunch",e:"🚲",cat:"Core",w:40,how:"Bring opposite elbow to opposite knee, pedal slowly side to side."},
+  {n:"Russian twist",e:"🔄",cat:"Core",w:40,how:"Lean back, feet up or down, rotate your torso side to side."},
+  {n:"Dead bug",e:"🐛",cat:"Core",w:40,how:"On back, extend opposite arm and leg, keep your lower back pressed down."},
+  {n:"Jumping jacks",e:"⭐",cat:"Cardio",w:40,how:"Jump feet out while raising arms overhead, return. Step-touch for low impact."},
+  {n:"High knees",e:"🏃",cat:"Cardio",w:35,how:"Run on the spot driving knees up to hip height, arms pumping."},
+  {n:"Butt kicks",e:"🦵",cat:"Cardio",w:35,how:"Jog on the spot kicking heels up toward your glutes."},
+  {n:"Mountain climber",e:"⛰️",cat:"Cardio",w:35,how:"In a plank, drive knees toward chest one at a time, quick and steady."},
+  {n:"Skaters",e:"⛸️",cat:"Cardio",w:40,how:"Leap side to side landing on one leg, like a speed skater."},
+  {n:"Step-back burpee",e:"🆙",cat:"Cardio",w:40,how:"Squat, step (or jump) back to plank, step in, stand. Add a jump to progress."},
+  {n:"Cat–cow",e:"🐱",cat:"Mobility",w:40,how:"On hands and knees, alternate arching and rounding your spine with your breath."},
+  {n:"Child's pose",e:"🙇",cat:"Mobility",w:40,how:"Kneel, sit hips back to heels, reach arms forward, relax and breathe."},
+  {n:"Hamstring stretch",e:"🦵",cat:"Mobility",w:35,how:"Hinge forward from the hips with soft knees, let your back lengthen."},
+  {n:"Chest opener",e:"🦅",cat:"Mobility",w:30,how:"Clasp hands behind your back, lift slightly and open across the chest."},
+  {n:"Neck rolls",e:"🙆",cat:"Mobility",w:25,how:"Slow, gentle half-circles to release neck tension. Never force it."},
+];
+
+const QUOTES=["You don't have to be extreme, just consistent.","A 5-minute workout beats the one you skipped.","Discipline is choosing what you want most over what you want now.","Your body can do it. It's your mind you need to convince.","Small steps every day add up to big change.","Don't stop when you're tired. Stop when you're done.","The hardest part is starting — and you already did.","Sweat now, shine later.","Take care of your body; it's the only place you have to live.","Progress, not perfection."];
+const MOTIV=[["Let's get moving 💪","Even 5 minutes today keeps the habit alive."],["You're on a roll 🔥","Keep that streak burning — one more session."],["Comeback time 👊","Missed a day? No guilt. Start again now."],["Strong week ahead 🌟","Pick a workout and go."]];
+
+/* foods for budget */
+const FOODS=[
+  {n:"Rice (2kg)",p:2800,cat:"Carbs",pri:1},{n:"Beans (1kg)",p:2000,cat:"Protein",pri:1},
+  {n:"Garri (1.5kg)",p:1500,cat:"Carbs",pri:1},{n:"Eggs (half crate, 15)",p:3500,cat:"Protein",pri:1},
+  {n:"Cooking oil (1L)",p:2500,cat:"Essentials",pri:1},{n:"Onions (small bowl)",p:700,cat:"Veg",pri:1},
+  {n:"Pepper & tomato mix",p:1500,cat:"Veg",pri:2},{n:"Ugu / green veg (bunch)",p:600,cat:"Veg",pri:2},
+  {n:"Seasoning, salt, maggi",p:800,cat:"Essentials",pri:2},{n:"Sardine / Geisha (x2)",p:2200,cat:"Protein",pri:2},
+  {n:"Spaghetti (2 packs)",p:1600,cat:"Carbs",pri:2},{n:"Pap / akamu",p:800,cat:"Carbs",pri:3},
+  {n:"Groundnut (cup)",p:700,cat:"Protein",pri:3},{n:"Plantain (half bunch)",p:1500,cat:"Carbs",pri:3},
+  {n:"Bread (1 loaf)",p:1200,cat:"Carbs",pri:3},{n:"Banana (6)",p:1000,cat:"Fruit",pri:3},
+  {n:"Oranges (6)",p:1200,cat:"Fruit",pri:3},{n:"Indomie noodles (x5)",p:2500,cat:"Carbs",pri:3},
+  {n:"Sweet potato / yam",p:2000,cat:"Carbs",pri:4},{n:"Frozen fish – titus (1kg)",p:4500,cat:"Protein",pri:4},
+  {n:"Chicken (1kg)",p:5500,cat:"Protein",pri:4},{n:"Milk & milo (sachets)",p:1500,cat:"Extras",pri:4},
+  {n:"Watermelon / pawpaw",p:1500,cat:"Fruit",pri:4}];
+const MEALS=[
+  {t:"Beans porridge + ripe plantain",s:"Boil beans soft with pepper, onion & oil; add a little plantain. Filling, cheap, high protein."},
+  {t:"Jollof / white rice + sardine stew",s:"Fry tomato-pepper-onion base, stir in sardine, serve with rice and veg."},
+  {t:"Eba (garri) + vegetable soup + egg",s:"Quick veg soup with ugu and a boiled egg for protein."},
+  {t:"Pap (akamu) + bread + groundnut",s:"Warm, easy breakfast. Groundnut adds protein to keep you full."},
+  {t:"Spaghetti + egg + veg sauce",s:"Boil spaghetti, toss in a light tomato sauce with a fried or boiled egg."},
+  {t:"Boiled yam / sweet potato + egg sauce",s:"Egg scrambled with onion, tomato & pepper over boiled yam."},
+  {t:"Beans & rice combo",s:"Classic 'rice and beans' — balanced and very budget-friendly."},
+  {t:"Veg-loaded noodles + egg",s:"Add chopped veg and an egg to noodles for a fuller, healthier bowl."}];
+
+/* calorie database (approx kcal per common serving) */
+const CALDB=[
+  ["Jollof rice (plate)",400],["White rice (plate)",350],["Fried rice (plate)",420],["Beans porridge (bowl)",350],
+  ["Eba / garri (medium)",300],["Pounded yam (medium)",350],["Boiled yam (portion)",200],["Sweet potato (portion)",180],
+  ["Boiled egg",78],["Fried egg",90],["Moi moi (1)",200],["Akara (3 balls)",250],["Bread (2 slices)",160],
+  ["Pap / akamu (bowl)",150],["Indomie (1 pack)",350],["Spaghetti (plate)",300],["Fried plantain/dodo (portion)",220],
+  ["Boiled plantain (portion)",180],["Chicken (fried piece)",250],["Fish – titus (piece)",150],["Beef (piece)",180],
+  ["Suya (stick)",150],["Pepper soup (bowl)",200],["Egusi soup (bowl)",300],["Vegetable soup/efo (bowl)",180],
+  ["Okro soup (bowl)",170],["Meat pie",300],["Puff puff (3)",240],["Groundnut (handful)",160],["Banana",105],
+  ["Orange",60],["Apple",95],["Watermelon (slice)",45],["Milo/milk (cup)",120],["Zobo with sugar (cup)",90]];
+
+/* daily challenges */
+const CHALLENGES=[
+  {t:"Do any workout today",e:"💪"},{t:"Log your mood",e:"🧠"},{t:"Hit your step goal",e:"👟"},
+  {t:"Drink your full water goal",e:"💧"},{t:"Do a desk stretch break",e:"🧘"},
+  {t:"Log everything you eat today",e:"🍽️"},{t:"Stick to your fasting window",e:"⏳"},{t:"Get to bed on time",e:"😴"}];
+
+/* themes */
+const THEMES={
+  sunset:{name:"Sunset",cost:0,a:"#ff7b00",a2:"#ffb703"},
+  ocean:{name:"Ocean",cost:100,a:"#0096c7",a2:"#48cae4"},
+  forest:{name:"Forest",cost:150,a:"#2d6a4f",a2:"#52b788"},
+  berry:{name:"Berry",cost:200,a:"#d6336c",a2:"#f06595"},
+  royal:{name:"Royal",cost:300,a:"#6741d9",a2:"#9775fa"},
+  gold:{name:"Champion Gold",cost:500,a:"#b8860b",a2:"#ffd700"}};
+
+/* skin concerns */
+const SKIN_CONCERNS=["Acne / breakouts","Dark spots","Dryness","Oiliness","Dull skin","Sensitivity"];
+
+/* ============ STATE ============ */
+const today=()=>new Date().toISOString().slice(0,10);
+function weekId(){const d=new Date();const o=new Date(d);o.setDate(d.getDate()-((d.getDay()+6)%7));return o.toISOString().slice(0,10);}
+const DEFAULT={name:"",why:"",goal:3,streak:0,last:"",total:0,minutes:0,week:weekId(),weekCount:0,badges:[],
+  budget:"",people:"1",xp:0,coins:0,
+  moodLog:[],sleepLog:[],sleepTarget:"22:30",
+  stepsDate:"",stepsToday:0,stepGoal:6000,
+  waterDate:"",water:0,waterGoal:8,
+  calLog:[],calGoal:2000,
+  fast:{active:false,start:0,plan:16},
+  skin:{type:"",concerns:[],habits:{}},
+  flags:{d:"",mood:false,sleep:false,steps:false,water:false,challenge:false,fast:false,cal:false},
+  challenge:{d:"",idx:0,done:false},
+  themes:["sunset"],theme:"sunset",updatedAt:0};
+let S=load();
+function load(){try{return deepMerge(JSON.parse(JSON.stringify(DEFAULT)),JSON.parse(localStorage.getItem("fitfed2")||"{}"));}catch(e){return JSON.parse(JSON.stringify(DEFAULT));}}
+function deepMerge(base,ov){for(const k in ov){if(ov[k]&&typeof ov[k]==="object"&&!Array.isArray(ov[k])&&base[k])deepMerge(base[k],ov[k]);else base[k]=ov[k];}return base;}
+let saveT=null;
+function save(){clearTimeout(saveT);S.updatedAt=Date.now();saveT=setTimeout(()=>localStorage.setItem("fitfed2",JSON.stringify(S)),120);if(typeof cloudMaybePush==="function")cloudMaybePush();}
+function saveNow(){S.updatedAt=Date.now();localStorage.setItem("fitfed2",JSON.stringify(S));if(typeof cloudMaybePush==="function")cloudMaybePush();}
+
+/* daily rollover */
+function rollDaily(){
+  const t=today();
+  if(S.stepsDate!==t){S.stepsDate=t;S.stepsToday=0;}
+  if(S.waterDate!==t){S.waterDate=t;S.water=0;}
+  if(S.flags.d!==t){S.flags={d:t,mood:false,sleep:false,steps:false,water:false,challenge:false,fast:false,cal:false};}
+  if(S.challenge.d!==t){const doy=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/86400000);S.challenge={d:t,idx:doy%CHALLENGES.length,done:false};}
+  if(S.week!==weekId()){S.week=weekId();S.weekCount=0;}
+}
+
+/* ============ NAV / SUBTABS ============ */
+function go(pg){
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id===pg));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.pg===pg));
+  window.scrollTo(0,0);
+  if(pg==="home")renderHome();
+  if(pg==="move"){renderRoutines();renderLib();renderSteps();}
+  if(pg==="well"){renderMood();renderWater();renderSleep();renderSkinHabits();renderStretches();}
+  if(pg==="eat"){renderCal();renderFast();}
+  if(pg==="me")renderMe();
+}
+function showSub(group,name,el){
+  document.querySelectorAll(".sub."+group).forEach(s=>s.classList.toggle("on",s.id===group+"-"+name));
+  el.parentElement.querySelectorAll(".pill").forEach(p=>p.classList.remove("on"));el.classList.add("on");
+}
+
+/* ============ RING HELPER ============ */
+function ring(pct,val,label,color){
+  pct=Math.max(0,Math.min(1,pct||0));const off=264*(1-pct);
+  return `<div class="ring"><svg width="96" height="96">
+    <circle cx="48" cy="48" r="42" stroke="#23415f" stroke-width="9" fill="none"/>
+    <circle cx="48" cy="48" r="42" stroke="${color}" stroke-width="9" fill="none" stroke-linecap="round"
+      stroke-dasharray="264" stroke-dashoffset="${off}" transform="rotate(-90 48 48)"/></svg>
+    <div class="num"><b>${val}</b><span>${label}</span></div></div>`;
+}
+
+/* ============ ANIMATED EXERCISE FIGURES ============ */
+/* Each move = 2 stick-figure poses cross-faded in a loop (offline flipbook). */
+const POSES={
+  jack:[{head:[50,14],neck:[50,30],hip:[50,66],elA:[34,40],haA:[26,20],elB:[66,40],haB:[74,20],knA:[38,92],akA:[28,114],knB:[62,92],akB:[72,114]},
+        {head:[50,14],neck:[50,30],hip:[50,70],elA:[45,52],haA:[44,72],elB:[55,52],haB:[56,72],knA:[48,92],akA:[48,114],knB:[52,92],akB:[52,114]}],
+  jog:[{head:[50,14],neck:[50,30],hip:[50,70],elA:[40,46],haA:[45,60],elB:[60,52],haB:[55,66],knA:[45,78],akA:[41,92],knB:[55,92],akB:[57,114]},
+       {head:[50,14],neck:[50,30],hip:[50,70],elA:[40,52],haA:[45,66],elB:[60,46],haB:[55,60],knA:[45,92],akA:[43,114],knB:[55,78],akB:[59,92]}],
+  squat:[{head:[50,14],neck:[50,30],hip:[50,68],elA:[42,46],haA:[44,60],elB:[58,46],haB:[56,60],knA:[45,90],akA:[45,114],knB:[55,90],akB:[55,114]},
+         {head:[50,26],neck:[50,40],hip:[50,72],elA:[40,42],haA:[33,38],elB:[60,42],haB:[67,38],knA:[37,86],akA:[44,114],knB:[63,86],akB:[56,114]}],
+  pushup:[{head:[84,42],neck:[73,46],hip:[42,55],elA:[72,60],haA:[74,74],elB:[70,60],haB:[72,74],knA:[28,61],akA:[13,71],knB:[27,61],akB:[12,71]},
+          {head:[84,54],neck:[73,58],hip:[42,63],elA:[66,64],haA:[74,74],elB:[64,64],haB:[72,74],knA:[28,67],akA:[13,73],knB:[27,67],akB:[12,73]}],
+  plank:[{head:[84,48],neck:[73,52],hip:[44,60],elA:[71,62],haA:[72,75],elB:[69,62],haB:[70,75],knA:[28,66],akA:[13,75],knB:[27,66],akB:[12,75]},
+         {head:[84,48],neck:[73,52],hip:[44,60],elA:[71,62],haA:[72,75],elB:[66,54],haB:[60,52],knA:[28,66],akA:[13,75],knB:[27,66],akB:[12,75]}],
+  lunge:[{head:[50,14],neck:[50,30],hip:[50,68],elA:[47,48],haA:[46,64],elB:[53,48],haB:[54,64],knA:[48,90],akA:[48,114],knB:[52,90],akB:[52,114]},
+         {head:[50,22],neck:[50,36],hip:[50,70],elA:[45,50],haA:[44,66],elB:[55,50],haB:[56,66],knA:[66,84],akA:[66,114],knB:[36,90],akB:[28,108]}],
+  bridge:[{head:[16,88],neck:[27,86],hip:[58,86],elA:[28,92],haA:[28,106],elB:[27,92],haB:[27,106],knA:[74,80],akA:[82,106],knB:[73,80],akB:[81,106]},
+          {head:[16,88],neck:[27,84],hip:[58,66],elA:[28,90],haA:[28,106],elB:[27,90],haB:[27,106],knA:[80,72],akA:[82,106],knB:[79,72],akB:[81,106]}],
+  crunch:[{head:[82,82],neck:[74,84],hip:[40,92],elA:[74,88],haA:[80,82],elB:[73,88],haB:[79,82],knA:[28,80],akA:[18,100],knB:[27,82],akB:[17,102]},
+          {head:[78,68],neck:[72,74],hip:[40,92],elA:[72,72],haA:[78,64],elB:[71,74],haB:[77,66],knA:[28,80],akA:[18,100],knB:[27,82],akB:[17,102]}],
+  calf:[{head:[50,18],neck:[50,32],hip:[50,72],elA:[42,52],haA:[40,70],elB:[58,52],haB:[60,70],knA:[46,92],akA:[46,114],knB:[54,92],akB:[54,114]},
+        {head:[50,12],neck:[50,26],hip:[50,66],elA:[42,46],haA:[40,64],elB:[58,46],haB:[60,64],knA:[46,88],akA:[47,110],knB:[54,88],akB:[53,110]}],
+  reach:[{head:[50,16],neck:[50,30],hip:[50,72],elA:[40,40],haA:[34,22],elB:[60,40],haB:[66,22],knA:[46,92],akA:[45,114],knB:[54,92],akB:[55,114]},
+         {head:[50,16],neck:[50,30],hip:[50,72],elA:[36,46],haA:[28,56],elB:[64,46],haB:[72,56],knA:[46,92],akA:[45,114],knB:[54,92],akB:[55,114]}]
+};
+const SPEED={jog:'0.5s',jack:'0.7s',squat:'1.1s',pushup:'1.1s',lunge:'1.3s',plank:'1.6s',bridge:'1.2s',crunch:'1.2s',calf:'0.7s',reach:'1.8s'};
+function fig(p,cls){
+  const L=(a,b)=>`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"/>`;
+  return `<svg class="figsvg ${cls}" viewBox="0 0 100 120">`+
+    `<g stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">`+
+    L(p.neck,p.hip)+L(p.neck,p.elA)+L(p.elA,p.haA)+L(p.neck,p.elB)+L(p.elB,p.haB)+
+    L(p.hip,p.knA)+L(p.knA,p.akA)+L(p.hip,p.knB)+L(p.knB,p.akB)+
+    `</g><circle cx="${p.head[0]}" cy="${p.head[1]}" r="9" fill="currentColor"/></svg>`;
+}
+function figureHTML(anim,px){const ps=POSES[anim];if(!ps)return"";return `<div class="flip run" style="width:${px}px;height:${Math.round(px*1.2)}px;--sp:${SPEED[anim]||'1s'}">${fig(ps[0],'f1')}${fig(ps[1],'f2')}</div>`;}
+function animFor(n){n=(n||"").toLowerCase();
+  if(/jumping jack/.test(n))return'jack';
+  if(/squat|wall sit|sumo|step-?up/.test(n))return'squat';
+  if(/push-?up|tricep|pike|dip/.test(n))return'pushup';
+  if(/lunge|world|skater/.test(n))return'lunge';
+  if(/plank|superman|shoulder tap/.test(n))return'plank';
+  if(/bridge/.test(n))return'bridge';
+  if(/crunch|bicycle|leg raise|russian|dead bug|sit-?up/.test(n))return'crunch';
+  if(/calf/.test(n))return'calf';
+  if(/high knee|butt kick|mountain|fast feet|march|knee lift|knee|burpee|jog/.test(n))return'jog';
+  if(/stretch|cat|child|chest|neck|arm circle|shrug|twist|reach|breath|relax|hip circle|hamstring|quad|side bend|cow/.test(n))return'reach';
+  return null;
+}
+function demoVideo(name){window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(name+' exercise how to'),'_blank');}
+
+/* ============ GAMIFICATION ============ */
+function levelFor(xp){return Math.floor(xp/300)+1;}
+function award(xp,coins,msg){
+  const oldLvl=levelFor(S.xp);
+  S.xp+=xp;S.coins+=coins;save();
+  const nl=levelFor(S.xp);
+  if(nl>oldLvl){flash("⭐ Level up! You're now Level "+nl);}
+  else if(msg){flash(msg+(xp?` +${xp}XP`:""));}
+  updateChips();
+}
+function updateChips(){
+  document.getElementById("lvlChip").textContent=levelFor(S.xp);
+  document.getElementById("coinChip").textContent=S.coins;
+}
+
+/* ============ HOME ============ */
+function renderHome(){
+  rollDaily();
+  document.getElementById("greetName").textContent=S.name?S.name.split(" ")[0]:"there";
+  document.getElementById("dateLine").textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById("weekRing").innerHTML=ring(S.goal?S.weekCount/S.goal:0,S.weekCount,"of "+S.goal+" this wk","var(--accent)");
+  document.getElementById("streakNum").textContent=S.streak;
+  document.getElementById("totalNum").textContent=S.total;
+  document.getElementById("minNum").textContent=S.minutes;
+  let m;
+  if(S.weekCount>=S.goal&&S.goal>0)m=["Goal smashed! 🎉","You hit your weekly target. Extra is bonus."];
+  else if(S.streak>=2)m=MOTIV[1];
+  else if(S.last&&daysBetween(S.last,today())>=2)m=MOTIV[2];
+  else m=MOTIV[0];
+  document.getElementById("motivLine").textContent=m[0];
+  document.getElementById("subLine").textContent=m[1];
+  document.getElementById("quote").innerHTML='"'+QUOTES[Math.floor(Math.random()*QUOTES.length)]+'"';
+  document.getElementById("quote").className="quote";
+
+  // glance rings: steps, water, calories
+  const calToday=todayCals();
+  document.getElementById("glanceRings").innerHTML=
+    ring(S.stepsToday/S.stepGoal,S.stepsToday,"steps","var(--blue)")+
+    ring(S.water/S.waterGoal,S.water+"/"+S.waterGoal,"water","var(--green)")+
+    ring(S.calGoal?calToday/S.calGoal:0,calToday,"of "+S.calGoal+" kcal","var(--accent2)");
+
+  // challenge
+  const ch=CHALLENGES[S.challenge.idx];
+  document.getElementById("challengeCard").innerHTML=
+    `<div class="row"><div style="font-size:2rem">${ch.e}</div>
+     <div class="grow"><h3>Daily challenge</h3><b>${ch.t}</b></div></div>`+
+    (S.challenge.done?`<p class="muted" style="margin-top:8px">✅ Completed today — nice one!</p>`
+      :`<button class="btn green" onclick="completeChallenge()">Mark complete (+40 XP, +25 🪙)</button>`);
+
+  // nudges
+  let nudges=[];
+  if(S.sleepTarget&&nearBedtime())nudges.push("😴 It's nearly your bedtime ("+S.sleepTarget+"). Start winding down.");
+  if(S.water<S.waterGoal)nudges.push("💧 "+ (S.waterGoal-S.water) +" more glass"+((S.waterGoal-S.water)>1?"es":"")+" to hit your water goal.");
+  if(S.last!==today())nudges.push("💪 No workout logged yet today — even 5 minutes counts.");
+  const nc=document.getElementById("nudgeCard");
+  if(nudges.length){nc.style.display="block";nc.innerHTML="<h3>Gentle nudges</h3>"+nudges.map(n=>`<p class="muted" style="margin:6px 0">${n}</p>`).join("");}
+  else{nc.style.display="none";}
+  updateChips();
+}
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function nearBedtime(){if(!S.sleepTarget)return false;const[h,m]=S.sleepTarget.split(":").map(Number);const now=new Date();const bt=new Date();bt.setHours(h,m,0,0);const diff=(bt-now)/60000;return diff<=45&&diff>=-90;}
+function completeChallenge(){if(S.challenge.done)return;S.challenge.done=true;award(40,25,"Challenge done!");renderHome();}
+
+/* ============ ROUTINES & LIBRARY ============ */
+function renderRoutines(){
+  const el=document.getElementById("routineList");el.innerHTML="";
+  ROUTINE_ORDER.forEach(k=>{
+    const r=ROUTINES[k];const c=document.createElement("div");c.className="card";
+    c.innerHTML=`<div class="row"><div style="font-size:2.1rem">${r.emoji}</div>
+      <div class="grow"><h2 style="margin-bottom:2px">${r.name}</h2>
+      <span class="muted">${r.desc} · ${r.steps.length} moves</span></div></div>`;
+    const b=document.createElement("button");b.className="btn";b.textContent="Start";b.onclick=()=>startRoutine(k);
+    c.appendChild(b);el.appendChild(c);
+  });
+}
+let libCat="All";
+function renderLib(){
+  const cp=document.getElementById("catPills");cp.innerHTML="";
+  LIB_CATS.forEach(cat=>{const s=document.createElement("span");s.className="pill"+(cat===libCat?" on":"");s.textContent=cat;s.onclick=()=>{libCat=cat;renderLib();};cp.appendChild(s);});
+  const el=document.getElementById("libList");el.innerHTML="";
+  LIBRARY.filter(x=>libCat==="All"||x.cat===libCat).forEach((x,i)=>{
+    const it=document.createElement("div");it.className="ex-item";
+    const a=animFor(x.n);
+    const visual=a?figureHTML(a,40):x.e;
+    it.innerHTML=`<div class="emo">${visual}</div><div class="meta"><b>${x.n}</b> <span class="cat">${x.cat}</span><small>${x.how}</small></div>`;
+    const wrap=document.createElement("div");wrap.style.cssText="display:flex;flex-direction:column;gap:6px;flex:none";
+    const b=document.createElement("button");b.className="btn small";b.textContent="▶ Do";b.style.margin="0";b.onclick=()=>startSingle(x);
+    const v=document.createElement("button");v.className="btn small ghost";v.textContent="🎬 Video";v.style.margin="0";v.onclick=()=>demoVideo(x.n);
+    wrap.appendChild(b);wrap.appendChild(v);it.appendChild(wrap);el.appendChild(it);
+  });
+}
+function renderStretches(){
+  const el=document.getElementById("stretchList");el.innerHTML="";
+  STRETCHES.forEach(s=>{const it=document.createElement("div");it.className="ex-item";
+    it.innerHTML=`<div class="emo">${s.e}</div><div class="meta"><b>${s.n}</b><small>${s.tip}</small></div><div class="muted">${s.w}s</div>`;el.appendChild(it);});
+  const b=document.createElement("button");b.className="btn green";b.textContent="Do the full routine ▶";b.onclick=()=>startRoutine("office");el.appendChild(b);
+}
+
+/* ============ TIMER ENGINE ============ */
+let T={};
+function startRoutine(key){const r=ROUTINES[key];if(!r)return;T={key,steps:r.steps,i:0,t:3,paused:false,phase:"prep",name:r.name,real:r.real,total:0};openTimer();}
+function startSingle(x){T={key:"single",steps:[{n:x.n,e:x.e,w:x.w,tip:x.how}],i:0,t:3,paused:false,phase:"prep",name:x.n,real:false,total:0};openTimer();}
+function openTimer(){document.getElementById("overlay").classList.add("on");resetControls();beep(660,.12);showStep();T.timer=setInterval(tick,1000);}
+function showStep(){
+  const emo=document.getElementById("ovEmo");
+  if(T.phase==="prep"){emo.innerHTML="⏳";set("ovName","Get ready…");set("ovTip","“"+T.name+"” starting. Stand up, make space.");set("stepCountTxt","");document.getElementById("ovTimer").classList.remove("rest");}
+  else if(T.phase==="rest"){const nx=T.steps[T.i];emo.innerHTML="💧";set("ovName","Rest");set("ovTip","Breathe. Next: "+nx.n);set("stepCountTxt",`${T.i} of ${T.steps.length} done`);document.getElementById("ovTimer").classList.add("rest");}
+  else{const s=T.steps[T.i];const a=animFor(s.n);emo.innerHTML=a?figureHTML(a,140):s.e;set("ovName",s.n);set("ovTip",s.tip);set("stepCountTxt",`Move ${T.i+1} of ${T.steps.length}`);document.getElementById("ovTimer").classList.remove("rest");}
+  updTimerUI();
+}
+function set(id,v){document.getElementById(id).textContent=v;}
+function tick(){if(T.paused)return;T.t--;if(T.t<=3&&T.t>0&&T.phase!=="rest")beep(880,.06);if(T.t<=0){advance();return;}updTimerUI();}
+function updTimerUI(){document.getElementById("ovTimer").textContent=Math.max(0,T.t);let full=T.phase==="prep"?3:T.phase==="rest"?10:T.steps[T.i].w;document.getElementById("ovBar").style.width=(100*(1-T.t/full))+"%";}
+function advance(){
+  if(T.phase==="prep"){T.phase="work";T.i=0;T.t=T.steps[0].w;beep(660,.15);showStep();return;}
+  if(T.phase==="work"){T.total+=T.steps[T.i].w;if(T.i>=T.steps.length-1){finishRoutine();return;}T.phase="rest";T.t=10;T.i++;beep(440,.1);showStep();return;}
+  if(T.phase==="rest"){T.phase="work";T.t=T.steps[T.i].w;beep(660,.15);showStep();return;}
+}
+function skipStep(){T.t=1;}
+function togglePause(){T.paused=!T.paused;document.getElementById("pauseBtn").textContent=T.paused?"Resume":"Pause";}
+function quitRoutine(){clearInterval(T.timer);document.getElementById("overlay").classList.remove("on");}
+function resetControls(){document.getElementById("ovControls").innerHTML='<button class="btn ghost" onclick="togglePause()" id="pauseBtn">Pause</button><button class="btn ghost" onclick="skipStep()">Skip</button><button class="btn" style="background:var(--pink);color:#fff" onclick="quitRoutine()">Quit</button>';}
+function finishRoutine(){
+  clearInterval(T.timer);
+  set("ovEmo","🎉");set("ovName","Done! Amazing work");document.getElementById("ovTimer").textContent="✓";document.getElementById("ovTimer").classList.remove("rest");set("stepCountTxt","");document.getElementById("ovBar").style.width="100%";
+  beep(660,.12);setTimeout(()=>beep(880,.18),160);if(navigator.vibrate)navigator.vibrate([120,60,120]);
+  const counts=T.real===true;const mins=Math.round(T.total/60);
+  if(counts){const t=today();if(S.last!==t){if(S.last&&daysBetween(S.last,t)===1)S.streak++;else S.streak=1;S.last=t;}S.total++;S.weekCount++;award(50,20,"Workout logged!");}
+  else{award(15,5,"Movement logged!");}
+  S.minutes+=mins;checkBadges();saveNow();
+  set("ovTip",counts?`+1 workout · ~${mins} min · ${S.weekCount>=S.goal?"weekly goal complete! 🏆":"streak alive 🔥"}`:`~${mins} min of movement. 🌿`);
+  document.getElementById("ovControls").innerHTML='<button class="btn" onclick="closeFinish()">Continue</button>';
+  renderHome();
+}
+function closeFinish(){document.getElementById("overlay").classList.remove("on");resetControls();go("home");}
+let AC;function beep(f,d){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.type="sine";o.connect(g);g.connect(AC.destination);g.gain.setValueAtTime(.18,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.start();o.stop(AC.currentTime+d);}catch(e){}}
+
+/* ============ STEPS ============ */
+function renderSteps(){
+  rollDaily();
+  document.getElementById("stepRing").innerHTML=ring(S.stepsToday/S.stepGoal,S.stepsToday,"of "+S.stepGoal,"var(--blue)");
+  const pct=Math.round(100*S.stepsToday/S.stepGoal);
+  document.getElementById("stepMsg").textContent=S.stepsToday>=S.stepGoal?"Goal smashed! 🎉":pct+"% there — keep walking!";
+  document.getElementById("stepGoalInput").value=S.stepGoal;
+  document.getElementById("stepSensorBtn").textContent=stepDetect.on?"⏹ Stop auto-counting":"📲 Auto-count my steps";
+}
+function addSteps(n){rollDaily();S.stepsToday=Math.max(0,S.stepsToday+n);if(S.stepsToday>=S.stepGoal&&!S.flags.steps){S.flags.steps=true;award(30,15,"Step goal hit! 👟");}save();renderSteps();if(document.getElementById("home").classList.contains("on"))renderHome();}
+function addStepsCustom(){const v=parseInt(prompt("How many steps to add?"),10);if(v>0)addSteps(v);}
+function saveStepGoal(){const v=parseInt(document.getElementById("stepGoalInput").value,10);if(v>0){S.stepGoal=v;save();renderSteps();flash("Step goal set ✓");}}
+let stepDetect={on:false,lpf:0,lastPeak:0};
+function toggleSteps(){
+  if(stepDetect.on){window.removeEventListener("devicemotion",onMotion);stepDetect.on=false;renderSteps();flash("Auto-counting off");return;}
+  const start=()=>{window.addEventListener("devicemotion",onMotion);stepDetect.on=true;renderSteps();flash("Counting steps — keep app open 📲");};
+  if(typeof DeviceMotionEvent!=="undefined"&&typeof DeviceMotionEvent.requestPermission==="function"){
+    DeviceMotionEvent.requestPermission().then(r=>{r==="granted"?start():flash("Motion permission denied — use +buttons");}).catch(()=>flash("Motion not available here"));
+  }else if(typeof DeviceMotionEvent!=="undefined"){start();}
+  else{flash("Your browser doesn't share motion here — use +buttons");}
+}
+function onMotion(e){const a=e.accelerationIncludingGravity;if(!a)return;const mag=Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2);stepDetect.lpf=stepDetect.lpf*0.8+mag*0.2;const v=mag-stepDetect.lpf;const now=Date.now();if(v>2.2&&now-stepDetect.lastPeak>300){stepDetect.lastPeak=now;rollDaily();S.stepsToday++;if(S.stepsToday>=S.stepGoal&&!S.flags.steps){S.flags.steps=true;award(30,15,"Step goal hit! 👟");}if(S.stepsToday%8===0)save();document.getElementById("stepRing").innerHTML=ring(S.stepsToday/S.stepGoal,S.stepsToday,"of "+S.stepGoal,"var(--blue)");}}
+
+/* ============ MOOD ============ */
+const FACES=["😞","😕","😐","🙂","😄"];let moodSel=0;
+function renderMood(){
+  const fc=document.getElementById("moodFaces");fc.innerHTML="";
+  FACES.forEach((f,i)=>{const d=document.createElement("div");d.className="face"+(moodSel===i+1?" on":"");d.textContent=f;d.onclick=()=>{moodSel=i+1;renderMood();};fc.appendChild(d);});
+  renderMoodAnalysis();
+}
+function saveMood(){
+  if(!moodSel){flash("Pick how you feel first 🙂");return;}
+  const note=document.getElementById("moodNote").value.trim();
+  S.moodLog.push({d:today(),score:moodSel,note});
+  if(S.moodLog.length>120)S.moodLog=S.moodLog.slice(-120);
+  document.getElementById("moodNote").value="";
+  if(!S.flags.mood){S.flags.mood=true;award(10,5,"Mood logged 🧠");}else{save();}
+  moodSel=0;renderMood();
+}
+function renderMoodAnalysis(){
+  const el=document.getElementById("moodAnalysis");
+  if(!S.moodLog.length){el.innerHTML='<h2>Your mood insights 🧠</h2><p class="muted">Log a few days and I\'ll show your trend here.</p>';return;}
+  const last7=S.moodLog.slice(-7);
+  const avg=(last7.reduce((s,m)=>s+m.score,0)/last7.length);
+  const latest=S.moodLog[S.moodLog.length-1].score;
+  let trend="Fairly steady this week.";
+  if(last7.length>=4){const h=Math.floor(last7.length/2);const a1=last7.slice(0,h).reduce((s,m)=>s+m.score,0)/h;const a2=last7.slice(h).reduce((s,m)=>s+m.score,0)/(last7.length-h);if(a2-a1>=0.6)trend="Your mood's trending up 📈 — keep doing what works.";else if(a1-a2>=0.6)trend="Mood's dipped lately 💙 — prioritise sleep, movement and rest.";}
+  const tips=["Tough days happen. Be gentle with yourself — a short walk or 5 slow breaths can help.","Not your best. Try water, a stretch, and a minute outside.","Steady. A short workout could lift you a notch.","Good energy! Channel it into a workout and lock the win.","Flying high! Celebrate it — maybe crush a workout while you feel great."];
+  let bars='<div class="bars">'+last7.map(m=>`<div class="b" style="height:${m.score/5*100}%;background:var(--accent2)"><span>${FACES[m.score-1]}</span></div>`).join("")+'</div>';
+  el.innerHTML=`<h2>Your mood insights 🧠</h2>
+    <div class="row" style="justify-content:space-between"><span class="muted">7-day average</span><span class="hi">${avg.toFixed(1)} / 5 ${FACES[Math.round(avg)-1]||""}</span></div>
+    ${bars}<div style="height:22px"></div>
+    <p class="muted">${trend}</p>
+    <p style="margin-top:8px">${tips[latest-1]}</p>`;
+}
+
+/* ============ WATER ============ */
+function renderWater(){rollDaily();document.getElementById("waterRing").innerHTML=ring(S.water/S.waterGoal,S.water+"/"+S.waterGoal,"glasses","var(--green)");document.getElementById("waterMsg").textContent=S.water>=S.waterGoal?"Goal reached! 💧":(S.waterGoal-S.water)+" to go";document.getElementById("waterGoalInput").value=S.waterGoal;}
+function addWater(n){rollDaily();S.water=Math.max(0,S.water+n);if(S.water>=S.waterGoal&&!S.flags.water){S.flags.water=true;award(15,10,"Hydration goal 💧");}save();renderWater();if(document.getElementById("home").classList.contains("on"))renderHome();}
+function saveWaterGoal(){const v=parseInt(document.getElementById("waterGoalInput").value,10);if(v>0){S.waterGoal=v;save();renderWater();flash("Water goal set ✓");}}
+
+/* ============ SLEEP ============ */
+function renderSleep(){
+  document.getElementById("bedTime").value=S.sleepTarget||"22:30";
+  const el=document.getElementById("sleepStats");
+  if(!S.sleepLog.length){el.innerHTML='<p class="muted">Log a night to see your average.</p>';return;}
+  const last=S.sleepLog[S.sleepLog.length-1];
+  const l7=S.sleepLog.slice(-7);const avg=l7.reduce((s,x)=>s+x.hours,0)/l7.length;
+  let tip=avg<6?"You're running low on sleep. Aim for 7–9 hrs — it boosts mood, recovery and willpower.":avg>9?"Plenty of rest! Quality matters as much as quantity.":"Nice — you're in the healthy 7–9 hr range. 👏";
+  el.innerHTML=`<div class="stat"><div class="box"><b>${last.hours}h</b><small>last night</small></div><div class="box"><b>${avg.toFixed(1)}h</b><small>7-day avg</small></div></div><p class="muted" style="margin-top:10px">${tip}</p>`;
+}
+function logSleep(){const v=parseFloat(document.getElementById("sleepHrs").value);if(!(v>0)){flash("Enter hours first");return;}S.sleepLog.push({d:today(),hours:v});if(S.sleepLog.length>90)S.sleepLog=S.sleepLog.slice(-90);document.getElementById("sleepHrs").value="";if(!S.flags.sleep){S.flags.sleep=true;award(10,5,"Sleep logged 😴");}else save();renderSleep();}
+function saveBedtime(){S.sleepTarget=document.getElementById("bedTime").value||"22:30";save();flash("Bedtime saved ✓");}
+
+/* ============ SKIN ============ */
+function renderSkinSetup(){
+  const sc=document.getElementById("skinConcerns");sc.innerHTML="";
+  SKIN_CONCERNS.forEach(c=>{const s=document.createElement("span");s.className="pill"+(S.skin.concerns.includes(c)?" on":"");s.textContent=c;s.style.cssText="display:inline-block;margin:5px 5px 0 0;cursor:pointer";s.onclick=()=>{const i=S.skin.concerns.indexOf(c);if(i>=0)S.skin.concerns.splice(i,1);else S.skin.concerns.push(c);save();renderSkinSetup();};sc.appendChild(s);});
+  if(S.skin.type)document.getElementById("skinType").value=S.skin.type;
+  if(S.skin.type)buildSkin(true);
+}
+function buildSkin(silent){
+  const type=document.getElementById("skinType").value;
+  if(!type){if(!silent)flash("Pick your skin type first");return;}
+  S.skin.type=type;save();
+  const base={
+    oily:["Gentle foaming cleanser morning & night","Light, oil-free moisturiser (don't skip it!)","Sunscreen every morning"],
+    dry:["Creamy, non-stripping cleanser","Rich moisturiser while skin is still damp","Sunscreen every morning"],
+    combination:["Gentle cleanser twice daily","Light moisturiser on T-zone, richer on cheeks","Sunscreen every morning"],
+    normal:["Gentle cleanser twice daily","Simple moisturiser day & night","Sunscreen every morning"],
+    sensitive:["Fragrance-free gentle cleanser","Soothing moisturiser (look for aloe, ceramides)","Mineral sunscreen every morning"]
+  }[type];
+  const concernTips={
+    "Acne / breakouts":"Don't over-scrub — it worsens acne. Keep pillowcases clean and avoid touching your face.",
+    "Dark spots":"Sunscreen is your #1 fix — it stops spots getting darker. Be patient; fading takes weeks.",
+    "Dryness":"Drink water and moisturise on damp skin. Avoid very hot water when washing.",
+    "Oiliness":"Don't skip moisturiser — stripping oil makes skin produce more. Blot, don't over-wash.",
+    "Dull skin":"Hydration, sleep and a little gentle exfoliation (1–2x a week) bring back glow.",
+    "Sensitivity":"Patch-test new products, keep your routine simple, and avoid harsh scrubs."
+  };
+  const natural="Affordable, gentle local options: plenty of water, shea butter for dryness, aloe vera gel to soothe, honey as a weekly mask, and a clean towel just for your face.";
+  let html=`<div class="card"><h2>Your routine — ${type} skin</h2>
+    <h3 style="margin-top:8px">Daily basics</h3>${base.map(b=>`<div class="ex-item"><div class="emo">✅</div><div class="meta"><b>${b}</b></div></div>`).join("")}`;
+  if(S.skin.concerns.length){html+=`<h3 style="margin-top:12px">For your concerns</h3>`+S.skin.concerns.map(c=>`<div class="meal"><b>${c}</b><small>${concernTips[c]||""}</small></div>`).join("");}
+  html+=`<p class="disc">${natural}</p></div>`;
+  document.getElementById("skinResult").innerHTML=html;
+}
+const SKIN_HABITS=[["cleanseAM","Cleanse face (morning)"],["sun","Apply sunscreen ☀️"],["water","Drink enough water 💧"],["cleansePM","Cleanse face (night)"],["sleep","Get good sleep 😴"]];
+function renderSkinHabits(){
+  renderSkinSetup();
+  rollDaily();
+  if(S.skin.habits.d!==today())S.skin.habits={d:today()};
+  const el=document.getElementById("skinHabits");el.innerHTML="";
+  SKIN_HABITS.forEach(([k,label])=>{const done=!!S.skin.habits[k];const d=document.createElement("div");d.className="check"+(done?" done":"");d.innerHTML=`<div class="bx">${done?"✓":""}</div><span>${label}</span>`;d.onclick=()=>{S.skin.habits[k]=!S.skin.habits[k];save();renderSkinHabits();};el.appendChild(d);});
+}
+
+/* ============ BREAK REMINDER ============ */
+let reminderTimer=null,reminderEnd=0;
+function toggleReminder(){const btn=document.getElementById("reminderBtn");if(reminderTimer){clearInterval(reminderTimer);reminderTimer=null;btn.textContent="Start break reminders";document.getElementById("reminderStatus").textContent="Reminders off.";return;}const mins=parseInt(document.getElementById("reminderMins").value,10);scheduleReminder(mins);btn.textContent="Stop reminders";beep(660,.1);}
+function scheduleReminder(mins){reminderEnd=Date.now()+mins*60000;if(reminderTimer)clearInterval(reminderTimer);reminderTimer=setInterval(()=>{const left=reminderEnd-Date.now();if(left<=0){beep(880,.2);if(navigator.vibrate)navigator.vibrate([200,100,200]);document.getElementById("reminderStatus").textContent="⏰ Time to stand & stretch!";clearInterval(reminderTimer);reminderTimer=null;document.getElementById("reminderBtn").textContent="Start break reminders";startRoutine("office");return;}const m=Math.floor(left/60000),s=Math.floor((left%60000)/1000);document.getElementById("reminderStatus").textContent=`Next break in ${m}:${String(s).padStart(2,'0')}`;},1000);}
+
+/* ============ BUDGET ============ */
+function planBudget(){
+  const raw=parseInt(document.getElementById("budgetInput").value,10);const people=parseInt(document.getElementById("peopleInput").value,10)||1;const res=document.getElementById("budgetResult");
+  if(!raw||raw<=0){res.innerHTML='<div class="card alt"><p>Please enter a budget amount first 🙂</p></div>';return;}
+  S.budget=raw;S.people=String(people);save();
+  const perHead=raw/people;const items=[...FOODS].sort((a,b)=>a.pri-b.pri||a.p-b.p);let spend=0,picked=[];
+  for(const f of items){if(spend+f.p<=perHead){picked.push(f);spend+=f.p;}}
+  for(const f of items){if(picked.includes(f))continue;if(spend+f.p<=perHead){picked.push(f);spend+=f.p;}}
+  const totalSpend=spend*people,leftover=raw-totalSpend;
+  let tier,tmsg;
+  if(perHead<5000){tier="Tight budget 💪";tmsg="We'll focus on the cheapest filling staples — beans, garri and eggs go a long way.";}
+  else if(perHead<12000){tier="Smart & balanced 👍";tmsg="Enough for solid carbs, protein and veg. A genuinely healthy week.";}
+  else if(perHead<25000){tier="Comfortable 🌟";tmsg="Room for fish or chicken and some fruit. Eat well this week!";}
+  else{tier="Generous 🎉";tmsg="Plenty for protein, fruit and treats. Consider saving a little too.";}
+  const cats={};picked.forEach(f=>{(cats[f.cat]=cats[f.cat]||[]).push(f);});const order=["Protein","Carbs","Veg","Fruit","Essentials","Extras"];
+  let html=`<div class="card"><h2>${tier}</h2><p class="muted">${tmsg}</p><p class="muted">For <span class="hi">${people===1?'1 person':people+' people'}</span> · budget <span class="hi">₦${raw.toLocaleString()}</span></p>`;
+  order.forEach(cat=>{if(!cats[cat])return;html+=`<div style="margin-top:12px"><div class="cat">${cat}</div>`;cats[cat].forEach(f=>{const line=people>1?`₦${f.p.toLocaleString()} × ${people}`:`₦${f.p.toLocaleString()}`;html+=`<div class="list-line"><span>${f.n}</span><span>${line}</span></div>`;});html+=`</div>`;});
+  html+=`<div class="total-line"><span>Estimated total</span><span>₦${totalSpend.toLocaleString()}</span></div>`;
+  if(leftover>300)html+=`<p class="muted" style="margin-top:6px">About <span class="hi">₦${leftover.toLocaleString()}</span> left over — save it or add a treat 🍊</p>`;
+  html+=`<p class="disc">Prices are rough Lagos-market estimates and change with season and where you shop. Use as a guide.</p></div>`;
+  html+=`<div class="card alt"><h2>🍳 Easy meals to make</h2><p class="muted">Built around your list:</p>`;
+  [...MEALS].sort(()=>Math.random()-.5).slice(0,4).forEach(m=>{html+=`<div class="meal"><b>${m.t}</b><small>${m.s}</small></div>`;});
+  html+=`<p class="muted small" style="margin-top:10px">💡 Cook in batches (a big pot of beans or stew) to save money, gas and time.</p></div>`;
+  res.innerHTML=html;res.scrollIntoView({behavior:"smooth"});
+}
+
+/* ============ CALORIES ============ */
+function todayCals(){return S.calLog.filter(x=>x.d===today()).reduce((s,x)=>s+x.cal,0);}
+function renderCal(){
+  rollDaily();
+  const sel=document.getElementById("calFood");if(sel.options.length===0){CALDB.forEach(([n,c])=>{const o=document.createElement("option");o.value=c;o.textContent=`${n} · ${c} kcal`;o.dataset.name=n;sel.appendChild(o);});}
+  document.getElementById("calGoalInput").value=S.calGoal;
+  const t=todayCals();document.getElementById("calRing").innerHTML=ring(S.calGoal?t/S.calGoal:0,t,"of "+S.calGoal,"var(--accent2)");
+  document.getElementById("calMsg").textContent=t<=S.calGoal?(S.calGoal-t)+" kcal left today":(t-S.calGoal)+" kcal over goal";
+  const list=document.getElementById("calList");const items=S.calLog.filter(x=>x.d===today());
+  list.innerHTML=items.length?items.map((x,i)=>`<div class="list-line"><span>${x.name}</span><span>${x.cal} kcal <button class="btn small ghost" style="padding:3px 8px;margin:0 0 0 6px" onclick="delCal(${S.calLog.indexOf(x)})">✕</button></span></div>`).join(""):'<p class="muted">Nothing logged yet today.</p>';
+}
+function addCalFromList(){const sel=document.getElementById("calFood");const opt=sel.options[sel.selectedIndex];S.calLog.push({d:today(),name:opt.dataset.name,cal:parseInt(opt.value,10)});checkCalGoal();save();renderCal();if(document.getElementById("home").classList.contains("on"))renderHome();}
+function addCalCustom(){const name=prompt("Food name?");if(!name)return;const cal=parseInt(prompt("Calories (kcal)?"),10);if(!(cal>0))return;S.calLog.push({d:today(),name,cal});checkCalGoal();save();renderCal();}
+function delCal(idx){S.calLog.splice(idx,1);save();renderCal();}
+function checkCalGoal(){if(!S.flags.cal){S.flags.cal=true;award(10,5,"Meal logged 🍽️");}}
+function saveCalGoal(){const v=parseInt(document.getElementById("calGoalInput").value,10);if(v>0){S.calGoal=v;save();renderCal();flash("Calorie goal set ✓");}}
+
+/* ============ FASTING ============ */
+const FAST_PLANS=[[16,"16:8"],[18,"18:6"],[20,"20:4"]];let fastTick=null;
+function renderFast(){
+  const fp=document.getElementById("fastPlans");fp.innerHTML="";
+  FAST_PLANS.forEach(([h,label])=>{const b=document.createElement("button");b.className="btn small"+(S.fast.plan===h?"":" ghost");b.textContent=label;b.onclick=()=>{if(!S.fast.active){S.fast.plan=h;save();renderFast();}};fp.appendChild(b);});
+  document.getElementById("fastBtn").textContent=S.fast.active?"Stop fasting":"Start fasting";
+  if(S.fast.active){if(!fastTick)fastTick=setInterval(updFast,1000);updFast();}
+  else{if(fastTick){clearInterval(fastTick);fastTick=null;}document.getElementById("fastState").textContent="Not fasting";document.getElementById("fastMsg").textContent="Pick a plan and start when your last meal ends.";document.getElementById("fastRing").innerHTML=ring(0,S.fast.plan+"h","plan","var(--blue)");}
+}
+function updFast(){
+  const target=S.fast.plan*3600000;const elapsed=Date.now()-S.fast.start;const pct=elapsed/target;
+  const h=Math.floor(elapsed/3600000),m=Math.floor((elapsed%3600000)/60000);
+  document.getElementById("fastRing").innerHTML=ring(pct,`${h}h ${m}m`,"of "+S.fast.plan+"h","var(--blue)");
+  if(elapsed>=target){document.getElementById("fastState").textContent="Goal reached! 🎉";document.getElementById("fastMsg").textContent="You completed your "+S.fast.plan+"-hour fast. You can break it now.";if(!S.flags.fast){S.flags.fast=true;award(40,20,"Fast complete! ⏳");}}
+  else{document.getElementById("fastState").textContent="Fasting…";const left=target-elapsed;const lh=Math.floor(left/3600000),lm=Math.floor((left%3600000)/60000);document.getElementById("fastMsg").textContent=`${lh}h ${lm}m left. Drink water, stay busy 💪`;}
+}
+function toggleFast(){if(S.fast.active){S.fast.active=false;save();renderFast();flash("Fast ended");}else{S.fast.active=true;S.fast.start=Date.now();S.flags.fast=false;save();renderFast();flash("Fast started ⏳");}}
+
+/* ============ ME / REWARDS ============ */
+function renderMe(){
+  fillProfile();renderBadges();renderThemeStore();renderAccount();
+  const lvl=levelFor(S.xp);const inLvl=S.xp%300;
+  document.getElementById("lvlBig").textContent=lvl;document.getElementById("lvlBox").textContent=lvl;
+  document.getElementById("xpText").textContent=S.xp+" XP total";
+  document.getElementById("xpNext").textContent=(300-inLvl)+" XP to Lv "+(lvl+1);
+  document.getElementById("xpBar").style.width=(inLvl/300*100)+"%";
+  document.getElementById("coinBig").textContent=S.coins;
+  document.getElementById("badgeCount").textContent=S.badges.length;
+}
+const BADGES=[
+  {id:"first",e:"🥾",t:"First step",test:s=>s.total>=1},{id:"three",e:"⭐",t:"3 workouts",test:s=>s.total>=3},
+  {id:"streak3",e:"🔥",t:"3-day streak",test:s=>s.streak>=3},{id:"week",e:"🏆",t:"Weekly goal",test:s=>s.weekCount>=s.goal&&s.goal>0},
+  {id:"ten",e:"💎",t:"10 workouts",test:s=>s.total>=10},{id:"hour",e:"⏱️",t:"60 minutes",test:s=>s.minutes>=60},
+  {id:"mood5",e:"🧠",t:"5 mood logs",test:s=>s.moodLog.length>=5},{id:"hydrate",e:"💧",t:"Water goal",test:s=>s.flags.water},
+  {id:"steps",e:"👟",t:"Step goal",test:s=>s.flags.steps},{id:"faster",e:"⏳",t:"First fast",test:s=>s.flags.fast},
+  {id:"lvl5",e:"🌟",t:"Reach Lv 5",test:s=>levelFor(s.xp)>=5},{id:"rich",e:"🪙",t:"200 coins",test:s=>s.coins>=200}];
+function checkBadges(){BADGES.forEach(b=>{if(b.test(S)&&!S.badges.includes(b.id))S.badges.push(b.id);});}
+function renderBadges(){checkBadges();const el=document.getElementById("badges");el.innerHTML="";BADGES.forEach(b=>{const got=S.badges.includes(b.id);const d=document.createElement("div");d.className="badge"+(got?" got":"");d.innerHTML=`<div class="b-emo">${b.e}</div><small>${b.t}</small>`;el.appendChild(d);});}
+function renderThemeStore(){
+  const el=document.getElementById("themeStore");el.innerHTML="";
+  Object.entries(THEMES).forEach(([k,t])=>{
+    const owned=S.themes.includes(k);const active=S.theme===k;
+    const d=document.createElement("div");d.className="theme-opt";
+    d.innerHTML=`<div class="swatch" style="background:linear-gradient(135deg,${t.a},${t.a2})"></div>
+      <div class="grow"><b>${t.name}</b><div class="muted small">${owned?"Unlocked":t.cost+" 🪙"}</div></div>`;
+    const btn=document.createElement("button");btn.className="btn small";btn.style.flex="none";
+    if(active){btn.outerHTML=`<span class="tag on">Active</span>`;d.innerHTML+=`<span class="tag on">Active</span>`;}
+    else if(owned){btn.textContent="Apply";btn.onclick=()=>{S.theme=k;save();applyTheme();renderThemeStore();flash(t.name+" applied 🎨");};d.appendChild(btn);}
+    else{btn.textContent="Unlock";btn.onclick=()=>{if(S.coins>=t.cost){S.coins-=t.cost;S.themes.push(k);S.theme=k;save();applyTheme();renderMe();flash(t.name+" unlocked! 🎉");}else{flash("Need "+(t.cost-S.coins)+" more 🪙");}};d.appendChild(btn);}
+    el.appendChild(d);
+  });
+}
+function applyTheme(){const t=THEMES[S.theme]||THEMES.sunset;document.documentElement.style.setProperty("--accent",t.a);document.documentElement.style.setProperty("--accent2",t.a2);}
+
+/* ============ PROFILE ============ */
+function fillProfile(){document.getElementById("nameInput").value=S.name;document.getElementById("whyInput").value=S.why;document.getElementById("goalInput").value=S.goal;document.getElementById("whyShow").textContent=S.why?'"'+S.why+'"':"Add your reason in your profile — I'll remind you on the hard days.";}
+function saveProfile(){S.name=document.getElementById("nameInput").value.trim();S.why=document.getElementById("whyInput").value.trim();S.goal=parseInt(document.getElementById("goalInput").value,10);saveNow();fillProfile();flash("Saved ✓");}
+function resetAll(){if(confirm("Reset everything — progress, logs and profile? This can't be undone.")){localStorage.removeItem("fitfed2");S=load();applyTheme();go("home");flash("Fresh start 🌱");}}
+function exportData(){const data=JSON.stringify(S);const box=document.getElementById("backupBox");box.style.display="block";box.value=data;box.focus();box.select();try{navigator.clipboard.writeText(data);flash("Backup code copied ✓");}catch(e){flash("Select the text above and copy it");}}
+function importData(){const t=prompt("Paste your backup code here:");if(!t)return;try{const obj=JSON.parse(t);localStorage.setItem("fitfed2",JSON.stringify(obj));S=load();applyTheme();go("home");flash("Backup restored ✓");}catch(e){flash("That code didn't work — check you pasted all of it");}}
+
+/* ============ FLASH ============ */
+function flash(t){const f=document.createElement("div");f.textContent=t;f.style.cssText="position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--green);color:#062018;font-weight:800;padding:10px 18px;border-radius:999px;z-index:200;box-shadow:0 6px 18px rgba(0,0,0,.3);max-width:90%;text-align:center";document.body.appendChild(f);setTimeout(()=>f.remove(),1700);}
+
+/* ============ CLOUD LOGIN & SYNC (Firebase) ============ */
+let cloudUser=null,cloudReady=false,pushT=null;
+function cloudOn(){return cloudReady&&!!cloudUser;}
+function val(id){const el=document.getElementById(id);return el?el.value.trim():"";}
+function cloudInit(){
+  try{
+    const c=window.FIREBASE_CONFIG;
+    if(typeof firebase==="undefined"||!c||/PASTE/.test(c.apiKey||"PASTE")){renderAccount();return;}
+    firebase.initializeApp(c);cloudReady=true;
+    firebase.auth().onAuthStateChanged(u=>{cloudUser=u||null;renderAccount();if(u)cloudPull();});
+  }catch(e){cloudReady=false;renderAccount();}
+}
+function cloudSignUp(){if(!cloudReady){flash("Cloud login isn't set up yet");return;}const e=val("acEmail"),p=val("acPass");if(!e||p.length<6){flash("Enter an email and a 6+ character password");return;}firebase.auth().createUserWithEmailAndPassword(e,p).then(()=>flash("Account created ✓")).catch(err=>flash(cloudErr(err)));}
+function cloudSignIn(){if(!cloudReady){flash("Cloud login isn't set up yet");return;}const e=val("acEmail"),p=val("acPass");if(!e||!p){flash("Enter your email and password");return;}firebase.auth().signInWithEmailAndPassword(e,p).then(()=>flash("Signed in ✓")).catch(err=>flash(cloudErr(err)));}
+function cloudSignOut(){if(cloudReady)firebase.auth().signOut().then(()=>{flash("Signed out");renderAccount();});}
+function cloudReset(){const e=val("acEmail");if(!cloudReady||!e){flash("Enter your email first");return;}firebase.auth().sendPasswordResetEmail(e).then(()=>flash("Password reset email sent 📧")).catch(err=>flash(cloudErr(err)));}
+function cloudErr(e){const c=(e&&e.code)||"";if(c.includes("email-already"))return"That email already has an account — try signing in";if(c.includes("wrong-password")||c.includes("invalid-cred")||c.includes("invalid-login"))return"Wrong email or password";if(c.includes("invalid-email"))return"That doesn't look like a valid email";if(c.includes("network"))return"No internet — login needs a connection";if(c.includes("too-many"))return"Too many tries — wait a moment";return"Couldn't do that — please try again";}
+function cloudPull(){
+  if(!cloudOn())return;
+  firebase.firestore().collection("users").doc(cloudUser.uid).get().then(doc=>{
+    if(doc.exists){const cloud=doc.data();
+      if((cloud.updatedAt||0)>(S.updatedAt||0)){localStorage.setItem("fitfed2",JSON.stringify(cloud));S=load();applyTheme();renderHome();flash("Progress synced from your account ☁️");}
+      else{cloudPush();}
+    }else{cloudPush();}
+    renderAccount();
+  }).catch(()=>{});
+}
+function cloudPush(){if(!cloudOn())return;firebase.firestore().collection("users").doc(cloudUser.uid).set(S).then(()=>{const el=document.getElementById("acSync");if(el)el.textContent="Saved to your account just now ✓";}).catch(()=>{});}
+function cloudMaybePush(){if(!cloudOn())return;clearTimeout(pushT);pushT=setTimeout(cloudPush,1500);}
+function renderAccount(){
+  const el=document.getElementById("accountCard");if(!el)return;
+  if(!cloudReady){el.innerHTML=`<h2>☁️ Accounts — not set up yet</h2><p class="muted">Cloud login isn't configured in this build. Your progress still saves on this phone, and you can use the backup code below to move devices. Add your Firebase setup to switch this on.</p>`;return;}
+  if(cloudUser){
+    el.innerHTML=`<h2>☁️ Account</h2><p class="muted">Signed in as <span class="hi">${cloudUser.email}</span></p>
+      <p class="muted small" id="acSync">Your progress syncs automatically across your devices.</p>
+      <button class="btn small" onclick="cloudPull()">Sync now</button>
+      <button class="btn small ghost" onclick="cloudSignOut()">Sign out</button>`;
+  }else{
+    el.innerHTML=`<h2>☁️ Log in to save across devices</h2>
+      <p class="muted">Optional — the app works without it. Logging in keeps your progress synced to any phone.</p>
+      <input type="email" id="acEmail" placeholder="Email" autocomplete="email">
+      <input type="password" id="acPass" placeholder="Password (6+ characters)" autocomplete="current-password">
+      <button class="btn" onclick="cloudSignIn()">Sign in</button>
+      <button class="btn ghost" onclick="cloudSignUp()">Create account</button>
+      <p class="muted small center" style="margin-top:8px;cursor:pointer" onclick="cloudReset()">Forgot password?</p>`;
+  }
+}
+
+/* ============ INIT ============ */
+function init(){
+  rollDaily();checkBadges();applyTheme();saveNow();
+  renderHome();
+  if(S.budget)document.getElementById("budgetInput").value=S.budget;
+  document.getElementById("peopleInput").value=S.people;
+  cloudInit();
+}
+init();
+</script>
+</body>
+</html>
